@@ -17,6 +17,10 @@
 #include <thread>
 #include <signal.h>
 
+#ifdef ENABLE_ZSIM_HOOKS
+#include "zsim_hooks.h"
+#endif
+
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #ifndef NOMINMAX
@@ -124,6 +128,14 @@ struct cli_context {
             console::set_display(DISPLAY_TYPE_RESET);
         }
 
+#ifdef ENABLE_ZSIM_HOOKS
+        // ROI: steady-state token generation (decode). The completion task has
+        // already been posted above; the model is loaded and the prompt has been
+        // ingested. We mark the region that collects generated tokens until the
+        // generation finishes.
+        zsim_roi_begin();
+#endif
+
         // wait for first result
         console::spinner::start();
         server_task_result_ptr result = rd.next(should_stop);
@@ -177,6 +189,11 @@ struct cli_context {
             }
             result = rd.next(should_stop);
         }
+
+#ifdef ENABLE_ZSIM_HOOKS
+        zsim_roi_end();
+#endif
+
         g_is_interrupted.store(false);
         // server_response_reader automatically cancels pending tasks upon destruction
         return curr_content;
